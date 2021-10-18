@@ -1,6 +1,6 @@
 import pygame
 import pygame.freetype
-import time
+import copy
 
 pygame.init()
 
@@ -117,11 +117,16 @@ class GUISkin():
         else:
             return self.options[option]
 
+    def copy(self):
+      g = GUISkin()
+      g.options = self.options
+      return g
+
     
 class Button(_GUIParent):
     def __init__(self, text, gui_skin, on_click, x=0, y=0):
         self.text = text
-        self.gui_skin = gui_skin
+        self.gui_skin = gui_skin.copy()
         self.on_click = on_click
         _margin = self.gui_skin.get_option('margin')
         size_rect = self.gui_skin.get_option('font').render(text, (0, 0, 0)).get_rect()
@@ -184,13 +189,16 @@ class Button(_GUIParent):
 class Text(_GUIParent): # this one will be simple, right? right?...
     def __init__(self, text, gui_skin, x=0, y=0):
         self.text = text
-        self.gui_skin = gui_skin
+        self.gui_skin = gui_skin.copy() # so it doesn't refer to the global copy of the gui_skin and modify other objects
+        assert self.gui_skin != gui_skin
         self.surf = gui_skin.get_option('font').render(text, gui_skin.get_option('foreground'))
         self.rect = self.surf.get_rect() # OHHHHHHHHHH get_rect
         self.rect.x = x
         self.rect.y = y
 
     def _rerender_surface(self):
+        w = self.rect.width
+        h = self.rect.height
         color = self.gui_skin.get_option('foreground')
         font = self.gui_skin.get_option('font')
         text = self.text
@@ -198,11 +206,15 @@ class Text(_GUIParent): # this one will be simple, right? right?...
         x, y = self.rect.x, self.rect.y
         self.rect = self.surf.get_rect()
         self.rect.x, self.rect.y = x, y
+        print(f'{self.text}: {abs(w-self.rect.width)=}, {abs(h-self.rect.height)=}')
 
     def draw(self, surface):
         surface.blit(self.surf, self.rect)
 
     def set_color(self, color):
+        '''
+      breaking?
+        '''
         self.gui_skin.set_option('foreground', color)
         self._rerender_surface()
 
@@ -246,12 +258,12 @@ def main():
     screen = pygame.display.set_mode((500, 500))
     screen.fill(pygame.Color('white'))
     main_frame = Frame()
-    b = Button("Play", gs, lambda: main_frame.set_option('foreground', pygame.Color('red')), x=0, y=0)
+    b = Button("Play", gs, lambda: t.set_color((255, 0, 0)), x=0, y=0)
     b.center(screen.get_rect())
     t = Text("AweSome Game", gs, x=200, y=10)
     t.center_x(screen.get_rect())
     t2 = Text("that is cool", gs, x=0, y=50)
-    t2.set_font(Font('alagard.ttf', 30))
+    t2.set_font(Font('alagard.ttf', 100)) # re-render
     t2.center_x(screen.get_rect())
     main_frame.add_children([b, t, t2])
     running = True
