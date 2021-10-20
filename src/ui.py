@@ -90,6 +90,12 @@ class Font:
         surface.set_colorkey((0, 0, 0))
         return surface
 
+    def get_size(self):
+        return self.font.size
+    
+    def get_path(self):
+        return self.font.path
+
 class GUISkin():
     def __init__(self):
         self.options = {
@@ -119,7 +125,15 @@ class GUISkin():
 
     def copy(self):
       g = GUISkin()
-      g.options = self.options
+      o = self.options
+      new_opts = {}
+      for key in o:
+          try:
+              new_opts[key] = copy.deepcopy(o[key])
+          except TypeError:
+              # is a font
+              new_opts[key] = Font(o[key].get_path(), o[key].get_size())
+      g.options = new_opts
       return g
 
     
@@ -206,7 +220,7 @@ class Text(_GUIParent): # this one will be simple, right? right?...
         x, y = self.rect.x, self.rect.y
         self.rect = self.surf.get_rect()
         self.rect.x, self.rect.y = x, y
-        print(f'{self.text}: {abs(w-self.rect.width)=}, {abs(h-self.rect.height)=}')
+        print(f'{self.text}: w: {abs(w-self.rect.width)}, h: {abs(h-self.rect.height)}')
 
     def draw(self, surface):
         surface.blit(self.surf, self.rect)
