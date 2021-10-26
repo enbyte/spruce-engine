@@ -1,15 +1,22 @@
 import pygame
+from pygame.locals import *
 import logging
+import btm_tools as tools
+import copy
 
 COLLIDE_NONE = 0
 COLLIDE_X = (1 << 1)
 COLLIDE_Y = (1 << 2)
 
-logging.basicConfig(format='Spruce %(levelname)s at %(asctime)s: %(message)s') # setup logging as 'Spruce WARNING at 1:32:00: Bing bong'
+logging.basicConfig(format='Spruce %(levelname.capital())s at %(asctime)s: %(message)s') # setup logging as 'Spruce Warning at 1:32:00: Bing bong'
 
 pygame.init()
 
 _tile_registry = [] # registry of the names of all of the created tiles
+
+def insert_every(my_str, group=3, char=','):
+  my_str = str(my_str)
+  return char.join(my_str[i:i+group] for i in range(0, len(my_str), group))
 
 def _sticky_load_image(image):
     '''
@@ -18,7 +25,11 @@ def _sticky_load_image(image):
     Otherwise, throw an error.
     '''
     if type(image) == str:
+      try:
         return pygame.image.load(image).convert()
+      except pygame.error:
+        print("No video mode! Make sure to initialize the display before calling Tile()!")
+        return pygame.image.load(image)
     elif type(image) == pygame.Surface:
         return image
     else:
@@ -29,7 +40,7 @@ class Tile:
     '''
     A class to represent a specfic _type_ of tile, i.e. lava, or grass.
     '''
-    def __init__(self, image, name="", size=32):
+    def __init__(self, image, name=""):
         self.image = _sticky_load_image(image)
         if name == "":
             logging.error('Name cannot be a blank string for a Tile')
@@ -41,10 +52,11 @@ class Tile:
             self.name = name
             _tile_registry.append(name)
         self.has_rect = True
-        self.size = size
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
 
     def __str__(self):
-        return '[Tiletype name=%s; image=%s; has_rect=%s; size=%s]' % (self.name, self.image, self.has_rect, self.size)
+        return '[Tiletype name=%s; image=%s; has_rect=%s; width=%s; height=%s]' % (self.name, self.image, self.has_rect, self.width, self.height)
 
 class NullTile:
     '''
@@ -54,7 +66,8 @@ class NullTile:
         self.name = 'NullTile'
         self.image = pygame.Surface((0, 0))
         self.has_rect = False
-        self.size = 0
+        self.width = 0
+        self.height = 0
 
     def __str__(self):
         return '[Null-tiletype <no data>]'
@@ -75,6 +88,8 @@ class _Tile:
         self.y = y
         self.rect = pygame.Rect(x, y, self.image.get_width(), self.image.get_height())
         self.has_rect = tiletype.has_rect
+        self.width = self.rect.width
+        self.height = self.rect.height
 
     def draw(self, surface):
         surface.blit(self.image, self.rect)
@@ -83,14 +98,15 @@ class _Tile:
         return self.rect
 
     def generate_rect(self):
-        self.rect = pygame.Rect(self.x, self.y, self.size, self.size)
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
 
     def update_tiletype(self, new_tiletype):
         self.tiletype = new_tiletype
         self.image = new_tiletype.image
         self.name = new_tiletype.name
-        self.size = new_tiletype.size
+        self.width = new_tiletype.width
+        self.height = new_tiletype.height
         if not self.has_rect and new_tiletype.has_rect: # was a nulltile, converting to a tile
             self.generate_rect()
         elif self.has_rect and not new_tiletype.has_rect: # converting to nulltile
@@ -236,12 +252,10 @@ class Tilemap:
         return z
 
     def get_tiles_on_screen(self, SCREEN_WIDTH, SCREEN_HEIGHT):
-        screen_rect = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
-        tiles = []
-        for tile in self.get_list_of_tiles():
-            if tile.colliderect(screen_rect):
-                tiles.append(tile)
-        return tiles
+        for row in self.tile_matrix:
+            for tile in row:
+              if not (tile.x + tile.width < 0 or tile.x > SCREEN_WIDTH or tile.y + tile.height < 0 or tile.y > SCREEN_HEIGHT):
+                yield tile
 
     def draw(self, surface):
         '''
@@ -253,12 +267,20 @@ class Tilemap:
 
 
 class CollidableObject:
-    def __init__(self, image, x, y):
+    def __init__(self, image, x, y, subsurface_rect_args=None):
+        '''
+      subsurface_rect_args format: [x (on image), y (on image), width, height]
+        '''
         self.image = _sticky_load_image(image)
         self.x, self.y = x, y
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
+        self.sra = subsurface_rect_args
+        if not subsurface_rect_args == None:
+          self.rect = pygame.Rect(self.x + subsurface_rect_args[0], self.y + subsurface_rect_args[1], subsurface_rect_args[2], subsurface_rect_args[3])
+          print(self.rect, self.x, self.y)
+        else:
+          self.rect = self.image.get_rect()
+          self.rect.x = x
+          self.rect.y = y
         self.xvel = 0
         self.yvel = 0
         self.precollisions = {}
@@ -266,11 +288,11 @@ class CollidableObject:
 
     def goto_x(self, x):
         self.x = x
-        self.rect.x = x
+        self.rect.x = x + self.sra[0]
 
     def goto_y(self, y):
         self.y = y
-        self.rect.y = y
+        self.rect.y = y + self.sra[1]
     
     def goto(self, x, y):
         self.goto_x(x)
@@ -281,8 +303,8 @@ class CollidableObject:
         self.rect.x += x
 
     def move_y(self, y):
-        self.y = y
-        self.rect.y = y
+        self.y += y
+        self.rect.y += y
 
     def move_xy(self, x, y):
         self.move_x(x)
@@ -296,6 +318,7 @@ class CollidableObject:
         :param ignore_tiletypes a list of tiletypes that the object should ignore and not collide with.
         :param ignore_names same, except with names.
         '''
+        print("collide-pre:", self.rect, self.rect.y==self.y)
         collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
         self.rect.x += self.xvel
         hit_list = tilemap.collision_test(self.rect, ignore_tiletypes=ignore_tiletypes, ignore_names=ignore_names)
@@ -320,18 +343,19 @@ class CollidableObject:
             elif self.yvel < 0:
                 self.rect.top = tile.bottom
                 collision_types['top'] = True
-        self.x = self.rect.x
-        self.y = self.rect.y
+        self.x = self.rect.x - self.sra[0]
+        self.y = self.rect.y - self.sra[1]
         for x in filter(lambda z: z.tiletype in self.aftercollisions.keys(), hit_list):
             for func in self.aftercollisions[x.tiletype]:
                 func(x)
+        print('collide-after:', self.rect, self.rect.y==self.y)
         return collision_types
 
     def draw(self, surface):
         '''
         Draw the object on a given surface
         '''
-        surface.blit(self.image, self.rect)
+        surface.blit(self.image, (self.x, self.y))
 
     def add_tile_collision(self, tile, func, cols=COLLIDE_NONE):
         if cols >> 1 & 1: # collide before
@@ -347,3 +371,71 @@ class CollidableObject:
                 self.aftercollisions[tile].append(func)
             except KeyError:
                 self.aftercollisions[tile] = [func]
+
+    def zero_velocities(self):
+      self.xvel = 0
+      self.yvel = 0
+
+
+
+
+def main():
+  pygame.init()
+  screen = pygame.display.set_mode((320, 320))
+  dirt = Tile('dirt.png', name="Dirt")
+  grass = Tile('grass.png', name="Grass")
+  flags = Tile('flag-collide-test.png', name="Flags")
+  ground_tmap = Tilemap(tools.load_mat('level'), [dirt, grass])
+  flags_tmap = Tilemap(tools.load_mat('flags_mat'), [NullTile(), flags])
+  player = CollidableObject('player.png', x=100, y=100, subsurface_rect_args=[0, 20, 32, 12])
+  print(player.rect.y == player.y)
+  player.image.set_colorkey((0, 0, 0))
+  p = player
+  flags.image.set_colorkey((0, 0, 0))
+  clock = pygame.time.Clock()
+  numframes = 0
+
+  running = True
+
+  while running:
+    for event in pygame.event.get():
+      if event.type == pygame.QUIT:
+        running = False
+      
+    keys = pygame.key.get_pressed()
+
+    if keys[K_UP]:
+          p.yvel -= 3
+    if keys[K_DOWN]:
+          p.yvel += 3
+    if keys[K_LEFT]:
+          p.xvel -= 3
+    if keys[K_RIGHT]:
+          p.xvel += 3
+
+    if keys[K_p]:
+      print(p.rect, p.x, p.y)
+
+    if p.xvel > 5:
+      p.xvel = 5
+    if p.xvel < -5:
+      p.xvel = -5
+    if p.yvel > 5:
+      p.yvel = 5
+    if p.yvel < -5:
+      p.yvel = -5
+
+    player.collide(flags_tmap)
+
+    player.zero_velocities()
+
+
+    ground_tmap.draw(screen)
+    player.draw(screen)
+    flags_tmap.draw(screen)
+    pygame.display.update()
+    numframes += 1
+    clock.tick(30)
+
+if __name__ == '__main__':
+  main()
