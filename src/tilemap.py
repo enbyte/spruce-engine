@@ -14,9 +14,6 @@ pygame.init()
 
 _tile_registry = [] # registry of the names of all of the created tiles
 
-def insert_every(my_str, group=3, char=','):
-  my_str = str(my_str)
-  return char.join(my_str[i:i+group] for i in range(0, len(my_str), group))
 
 def _sticky_load_image(image):
     '''
@@ -40,7 +37,7 @@ class Tile:
     '''
     A class to represent a specfic _type_ of tile, i.e. lava, or grass.
     '''
-    def __init__(self, image, name=""):
+    def __init__(self, image, subsurface_rect_args=None, name=""):
         self.image = _sticky_load_image(image)
         if name == "":
             logging.error('Name cannot be a blank string for a Tile')
@@ -54,7 +51,10 @@ class Tile:
         self.has_rect = True
         self.width = self.image.get_width()
         self.height = self.image.get_height()
-
+        if subsurface_rect_args is None:
+          self.sra = [0, 0, self.width, self.height]
+        else:
+          self.sra = subsurface_rect_args
     def __str__(self):
         return '[Tiletype name=%s; image=%s; has_rect=%s; width=%s; height=%s]' % (self.name, self.image, self.has_rect, self.width, self.height)
 
@@ -68,6 +68,7 @@ class NullTile:
         self.has_rect = False
         self.width = 0
         self.height = 0
+        self.sra = [0, 0, 0, 0]
 
     def __str__(self):
         return '[Null-tiletype <no data>]'
@@ -84,21 +85,23 @@ class _Tile:
         self.name = tiletype.name
         self.image = tiletype.image
         self.tiletype = tiletype #keep track of it
+        self.sra = tiletype.sra
         self.x = x
         self.y = y
-        self.rect = pygame.Rect(x, y, self.image.get_width(), self.image.get_height())
+        self.generate_rect()
+        print(f'x: {self.x}, y: {self.y}, rect_x: {self.rect.x}, rect_y: {self.rect.y}')
         self.has_rect = tiletype.has_rect
         self.width = self.rect.width
         self.height = self.rect.height
 
     def draw(self, surface):
-        surface.blit(self.image, self.rect)
+        surface.blit(self.image, (self.x, self.y))
 
     def get_rect(self):
         return self.rect
 
     def generate_rect(self):
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.rect = pygame.Rect(self.x + self.sra[0], self.y + self.sra[1], self.sra[2], self.sra[3])
 
 
     def update_tiletype(self, new_tiletype):
@@ -318,7 +321,7 @@ class CollidableObject:
         :param ignore_tiletypes a list of tiletypes that the object should ignore and not collide with.
         :param ignore_names same, except with names.
         '''
-        print("collide-pre:", self.rect, self.rect.y==self.y)
+        #print("collide-pre:", self.rect, self.rect.y==self.y)
         collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
         self.rect.x += self.xvel
         hit_list = tilemap.collision_test(self.rect, ignore_tiletypes=ignore_tiletypes, ignore_names=ignore_names)
@@ -348,7 +351,7 @@ class CollidableObject:
         for x in filter(lambda z: z.tiletype in self.aftercollisions.keys(), hit_list):
             for func in self.aftercollisions[x.tiletype]:
                 func(x)
-        print('collide-after:', self.rect, self.rect.y==self.y)
+        #print('collide-after:', self.rect, self.rect.y==self.y)
         return collision_types
 
     def draw(self, surface):
@@ -382,16 +385,15 @@ class CollidableObject:
 def main():
   pygame.init()
   screen = pygame.display.set_mode((320, 320))
-  dirt = Tile('assets/dirt.png', name="Dirt")
-  grass = Tile('assets/grass.png', name="Grass")
-  flags = Tile('assets/flag-collide-test.png', name="Flags")
-  ground_tmap = Tilemap(tools.load_mat('assets/level.txt'), [dirt, grass])
-  flags_tmap = Tilemap(tools.load_mat('assets/flags_mat.txt'), [NullTile(), flags])
-  player = CollidableObject('player.png', x=100, y=100, subsurface_rect_args=[0, 20, 32, 12])
-  print(player.rect.y == player.y)
+  dirt = Tile('dirt.png', name="Dirt")
+  grass = Tile('grass.png', name="Grass")
+  tree = Tile('tree.png', name="Tree")
+  ground_tmap = Tilemap(tools.load_mat('level'), [dirt, grass])
+  flags_tmap = Tilemap(tools.load_mat('flags_mat'), [NullTile(), tree])
+  player = CollidableObject('player.png', x=100, y=100, subsurface_rect_args=[0, 27, 32, 5])
   player.image.set_colorkey((0, 0, 0))
+  tree.image.set_colorkey((0, 0, 0))
   p = player
-  flags.image.set_colorkey((0, 0, 0))
   clock = pygame.time.Clock()
   numframes = 0
 
