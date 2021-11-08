@@ -14,6 +14,7 @@ ENGINE
 '''
 
 import pygame
+import operator
 pygame.init()
 pygame.font.init()
 pygame.mixer.init()
@@ -81,3 +82,19 @@ class AssetManager:
 
     def get_sound(self, id_):
         return self.sounds[id_]
+     
+     
+class ObjectCollection:
+ def __init__(self, objects):
+  self.objs = objects
+  
+ def draw(self, surface):
+  for o in self.objs:
+   o.draw(surface)
+   
+ def depth_sort_all_neg_y(self, in_place=True):
+  keyf = operator.attrgetter('rect.y')
+  if in_place:
+   self.objs.sort(key=keyf, reverse=True)
+  else:
+   return sorted(self.objs, key=keyf, reverse=True
