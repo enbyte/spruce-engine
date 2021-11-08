@@ -1,3 +1,13 @@
+'''
+sra_finder.py - enbyte
+simple program that opens an image and puts it in a window. Then you can drag a rect over it and it prints the rect out.
+usage:
+    python3 sra_finder.py <image_name>
+'''
+
+
+
+
 import pygame
 import sys
 
