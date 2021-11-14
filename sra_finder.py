@@ -24,6 +24,7 @@ running = True
 mousedown = False
 
 while running:
+    display.fill((255, 0, 0))
     display.blit(img, (0, 0))
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
