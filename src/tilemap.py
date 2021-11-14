@@ -3,6 +3,7 @@ from pygame.locals import *
 import logging
 import btm_tools as tools
 import copy
+import object_manager
 
 COLLIDE_NONE = 0
 COLLIDE_X = (1 << 1)
@@ -12,7 +13,7 @@ logging.basicConfig(format='Spruce %(levelname.capital())s at %(asctime)s: %(mes
 
 pygame.init()
 
-_tile_registry = [] # registry of the names of all of the created tiles
+_tile_registry = object_manager.Registry()
 
 
 def _sticky_load_image(image):
@@ -47,7 +48,7 @@ class Tile:
             raise NameError
         else:
             self.name = name
-            _tile_registry.append(name)
+            _tile_registry.add(self)
         self.has_rect = True
         self.width = self.image.get_width()
         self.height = self.image.get_height()
@@ -89,10 +90,18 @@ class _Tile:
         self.x = x
         self.y = y
         self.generate_rect()
-        print(f'x: {self.x}, y: {self.y}, rect_x: {self.rect.x}, rect_y: {self.rect.y}')
         self.has_rect = tiletype.has_rect
         self.width = self.rect.width
         self.height = self.rect.height
+
+    def __str__(self):
+        if self.has_rect and self.rect.width > 0 and self.rect.height > 0:
+            return '[Tile rect=%s; tiletype=%s]' % (str(self.rect), str(self.tiletype))
+        else:
+            return '[NullTile]'
+
+    def __repr__(self):
+        return self.__str__()
 
     def draw(self, surface):
         surface.blit(self.image, (self.x, self.y))
@@ -158,6 +167,7 @@ class Tilemap:
             y += 1
            
         self.tile_list = tile_list
+        self.tile_registry = object_manager.Registry(self.get_list_of_tiles())
         self.x = 0
         self.y = 0
 
@@ -267,6 +277,14 @@ class Tilemap:
         for tile in self.get_tiles_on_screen(surface.get_width(), surface.get_height()):
             tile.draw(surface)
 
+    def get_registry(self):
+        return self.tile_registry
+
+    def get_tiles_of_type(self, tiletype):
+        for tile in self.get_list_of_tiles():
+            if tile.tiletype == tiletype:
+                yield tile
+
 
 
 class CollidableObject:
@@ -279,7 +297,7 @@ class CollidableObject:
         self.sra = subsurface_rect_args
         if not subsurface_rect_args == None:
           self.rect = pygame.Rect(self.x + subsurface_rect_args[0], self.y + subsurface_rect_args[1], subsurface_rect_args[2], subsurface_rect_args[3])
-          print(self.rect, self.x, self.y)
+          #print(self.rect, self.x, self.y)
         else:
           self.rect = self.image.get_rect()
           self.rect.x = x
@@ -288,6 +306,7 @@ class CollidableObject:
         self.yvel = 0
         self.precollisions = {}
         self.aftercollisions = {}
+        self.r = object_manager.Registry([self]) # dummy registry for depth sorting
 
     def goto_x(self, x):
         self.x = x
@@ -379,18 +398,27 @@ class CollidableObject:
       self.xvel = 0
       self.yvel = 0
 
+    def get_registry(self):
+        return self.r
+
+    def __str__(self):
+        return "[CollidableObject rect=" + str(self.rect) + "]"
+    
+    def __repr__(self):
+        return "[CollidableObject rect=" + str(self.rect) + "]"
+
 
 
 
 def main():
   pygame.init()
   screen = pygame.display.set_mode((320, 320))
-  dirt = Tile('dirt.png', name="Dirt")
-  grass = Tile('grass.png', name="Grass")
-  tree = Tile('tree.png', name="Tree")
-  ground_tmap = Tilemap(tools.load_mat('level'), [dirt, grass])
-  flags_tmap = Tilemap(tools.load_mat('flags_mat'), [NullTile(), tree])
-  player = CollidableObject('player.png', x=100, y=100, subsurface_rect_args=[0, 27, 32, 5])
+  dirt = Tile('assets/dirt.png', name="Dirt")
+  grass = Tile('assets/grass.png', name="Grass")
+  tree = Tile('assets/tree.png', name="Tree", subsurface_rect_args=[11, 93, 8, 3])
+  ground_tmap = Tilemap(tools.load_mat('assets/level.txt'), [dirt, grass])
+  flags_tmap = Tilemap(tools.load_mat('assets/flags_mat.txt'), [NullTile(), tree])
+  player = CollidableObject('assets/player.png', x=100, y=100, subsurface_rect_args=[8, 29, 16, 3])
   player.image.set_colorkey((0, 0, 0))
   tree.image.set_colorkey((0, 0, 0))
   p = player
@@ -433,8 +461,8 @@ def main():
 
 
     ground_tmap.draw(screen)
-    player.draw(screen)
-    flags_tmap.draw(screen)
+    combined_registries = player.get_registry() + flags_tmap.get_registry()
+    combined_registries.draw_sorted_on_screen(screen)
     pygame.display.update()
     numframes += 1
     clock.tick(30)

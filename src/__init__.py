@@ -2,5 +2,5 @@ from . import vector
 from . import tilemap as tile
 from . import ui
 from . import network
-from . import asset_manager as a_m
+from . import object_manager
 
