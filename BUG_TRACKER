@@ -1,4 +1,4 @@
-TO_IMPLEMENT: *clap* depth sorting *clap*
+TO_IMPLEMENT: *clap* depth sorting *clap* (!) [done] 
 BUG: recipe can_craft is broken [done]
 BUG: scale is weird on gui object re-render [done]
 TO_IMPLEMENT: per _Tile subsurface rect args [done]
