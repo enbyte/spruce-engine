@@ -1,6 +1,7 @@
 import pygame
 import pygame.freetype
 import copy
+import random
 
 pygame.init()
 
@@ -56,7 +57,7 @@ class _GUIParent:
     def center_y(self, rect):
         self.rect.center = (self.rect.center[0], rect.center[1])
 
-    def _rerender_surface():
+    def _rerender_surface(self):
         pass
 
 
@@ -101,7 +102,7 @@ class GUISkin():
         self.options = {
             'foreground': pygame.Color('black'),
             'background': pygame.Color('white'),
-            'font': Font('alagard.ttf', 24),
+            'font': Font('assets/alagard.ttf', 24),
             'margin': 10,
             'button-inactive-background': pygame.Color('black'),
             'button-inactive-foreground': pygame.Color('white'),
@@ -240,6 +241,56 @@ class Text(_GUIParent): # this one will be simple, right? right?...
         self.text = text
         self._rerender_surface()
 
+class FillBar(_GUIParent):
+    def __init__(self, gui_skin, x=0, y=0, width=0, height=0, value=0, max_value=100):
+        self.gui_skin = gui_skin.copy()
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.value = value
+        self.max_value = max_value
+        self.rect = pygame.Rect(x, y, width, height)
+        self.active = False
+        self.prev = False
+
+    def update(self, mousepos=None, keyboard=None, mousedown=None):
+        if not mousepos == None:
+            mp = pygame.mouse.get_pos()
+        else:
+            mp = mousepos
+
+        if self.rect.collidepoint(mp):
+            self.active = True
+        else:
+            self.active = False
+
+        if not mousedown == None:
+            if mousedown[0] and self.active:
+                if not self.prev:
+                    self.change_value(5 * random.choice([-1, 1]))
+                    if self.value > self.max_value:
+                        self.value = self.max_value
+                self.prev = True
+            else:
+                self.prev = False
+
+    def set_value(self, value):
+        if value > self.max_value:
+            self.value = self.max_value
+        elif value < 0:
+            self.value = 0
+        else:
+            self.value = value
+
+    def change_value(self, value):
+        self.set_value(self.value + value)
+
+    def draw(self, surface):
+        pygame.draw.rect(surface, self.gui_skin.get_option('background'), self.rect)
+        if self.value > 0:
+            pygame.draw.rect(surface, self.gui_skin.get_option('foreground'), (self.x, self.y, self.width * (self.value / self.max_value), self.height))
+
 class Frame(_GUIParent):
     def __init__(self):
         self.children = []
@@ -277,9 +328,12 @@ def main():
     t = Text("AweSome Game", gs, x=200, y=10)
     t.center_x(screen.get_rect())
     t2 = Text("that is cool", gs, x=0, y=50)
-    t2.set_font(Font('alagard.ttf', 100)) # re-render
+    t2.set_font(Font('assets/alagard.ttf', 100)) # re-render
     t2.center_x(screen.get_rect())
-    main_frame.add_children([b, t, t2])
+    f = FillBar(gs, x=10, y=300, width=screen.get_width() - 20, height=50, value=50, max_value=100)
+    f.set_option('foreground', (0, 255, 0))
+    f.set_option('background', (255, 0, 0))
+    main_frame.add_children([b, t, t2, f])
     running = True
     while running:
         for event in pygame.event.get():

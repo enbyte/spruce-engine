@@ -412,7 +412,7 @@ class CollidableObject:
 
 def main():
   pygame.init()
-  screen = pygame.display.set_mode((320, 320))
+  screen = pygame.display.set_mode((320, 320), flags=pygame.SCALED)
   dirt = Tile('assets/dirt.png', name="Dirt")
   grass = Tile('assets/grass.png', name="Grass")
   tree = Tile('assets/tree.png', name="Tree", subsurface_rect_args=[11, 93, 8, 3])

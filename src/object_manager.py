@@ -29,7 +29,7 @@ class Loader:
     def __init__(self, loaders):
         self.loaders = loaders
 
-    def load(file):
+    def load(self, file):
         '''
         Load a file.
         If it has a known type, load it, otherwise error.
@@ -50,8 +50,8 @@ class BasicLoader(Loader):
     '''
     Same loader but with a few defaults.
     '''
-    def __init__(self, additional):
-        self.loaders = default_loaders + additional
+    def __init__(self):
+        self.loaders = default_loaders
 
 
 
