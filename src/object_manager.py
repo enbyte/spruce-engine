@@ -165,10 +165,15 @@ class Registry:
         return sorted(self.get_on_screen(screen_rect), key=operator.attrgetter('rect.y')) # the cause of so much pain... it was literally rect.y instead of y and I spent thirty minuted trying to fix this
 
     def sort_all(self):
-        self.objs = sorted(self.objs, key=operator.attrgetter('y'))
+        self.objs = sorted(self.objs, key=operator.attrgetter('rect.y'))
 
     def get_sorted_on_screen(self, screen_rect):
-        return sorted(self.get_on_screen(screen_rect), key=operator.attrgetter('y'))
+        return sorted(self.get_on_screen(screen_rect), key=operator.attrgetter('rect.y'))
+
+    def get_all_for_condition(self, condition):
+        for obj in self.objs:
+            if condition(obj):
+                yield obj
 
 
     

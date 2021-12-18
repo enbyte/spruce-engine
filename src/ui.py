@@ -67,9 +67,9 @@ class Font:
     '''
     def __init__(self, filename, size, bold=False, italic=False):
         if len(filename.split('.')) == 1:
-            self.font = pygame.freetype.SysFont(filename, size=size * 4/3, bold=bold, italic=italic)
+            self.font = pygame.freetype.SysFont(filename, size=size, bold=bold, italic=italic)
         else:
-            self.font = pygame.freetype.Font(filename, size=size * 4/3)
+            self.font = pygame.freetype.Font(filename, size=size)
 
         print(self.font.size)
 
@@ -97,12 +97,18 @@ class Font:
     def get_path(self):
         return self.font.path
 
+    def __repr__(self):
+        return '[Font size=%s, path=%s]' % (self.font.size, self.font.path)
+
+    def __str__(self):
+        return self.__repr__()
+
 class GUISkin():
     def __init__(self):
         self.options = {
             'foreground': pygame.Color('black'),
             'background': pygame.Color('white'),
-            'font': Font('assets/alagard.ttf', 24),
+            'font': Font('assets/alagard.ttf', 24 * 4/3),
             'margin': 10,
             'button-inactive-background': pygame.Color('black'),
             'button-inactive-foreground': pygame.Color('white'),
@@ -136,6 +142,12 @@ class GUISkin():
               new_opts[key] = Font(o[key].get_path(), o[key].get_size())
       g.options = new_opts
       return g
+
+    def __repr__(self):
+        return 'GUISkin: %s' % self.options
+
+    def __str__(self):
+        return self.__repr__()
 
     
 class Button(_GUIParent):
@@ -230,8 +242,10 @@ class Text(_GUIParent): # this one will be simple, right? right?...
         '''
       breaking?
         '''
+        print(self.gui_skin)
         self.gui_skin.set_option('foreground', color)
         self._rerender_surface()
+        print(self.gui_skin)
 
     def set_font(self, font):
         self.gui_skin.set_option('font', font)
@@ -325,6 +339,7 @@ def main():
     main_frame = Frame()
     b = Button("Play", gs, lambda: t.set_color((255, 0, 0)), x=0, y=0)
     b.center(screen.get_rect())
+    print("fsz==:", b.gui_skin.get_option('font').get_size())
     t = Text("AweSome Game", gs, x=200, y=10)
     t.center_x(screen.get_rect())
     t2 = Text("that is cool", gs, x=0, y=50)

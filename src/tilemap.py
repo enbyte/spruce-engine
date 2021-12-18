@@ -39,6 +39,7 @@ class Tile:
     A class to represent a specfic _type_ of tile, i.e. lava, or grass.
     '''
     def __init__(self, image, subsurface_rect_args=None, name=""):
+        self._tile_creation_class = _Tile
         self.image = _sticky_load_image(image)
         if name == "":
             logging.error('Name cannot be a blank string for a Tile')
@@ -70,6 +71,7 @@ class NullTile:
         self.width = 0
         self.height = 0
         self.sra = [0, 0, 0, 0]
+        self._tile_creation_class = _Tile
 
     def __str__(self):
         return '[Null-tiletype <no data>]'
@@ -81,8 +83,7 @@ class _Tile:
     '''
     Internal class used to represent a specific tile in the world.
     '''
-    def __init__(self, tiletype, x, y):
-        assert type(tiletype) == Tile or type(tiletype) == NullTile
+    def __init__(self, tiletype, x, y, superclass=None):
         self.name = tiletype.name
         self.image = tiletype.image
         self.tiletype = tiletype #keep track of it
@@ -151,6 +152,19 @@ class _Tile:
     def colliderect(self, other):
         return self.rect.colliderect(other)
 
+class _HittableDemoObject(_Tile):
+    def __init__(self, superclass=None, *pargs, **kwargs):
+        _Tile.__init__(self, *pargs, **kwargs)
+        self.hits = superclass.hits
+        self.superclass = superclass
+    
+    def hit(self, damage):
+        print("Oof! You hit me for %s damage! " % damage)
+        self.hits -= damage
+        print("I have %s hits left!" % self.hits)
+        if self.hits <= 0:
+            self.superclass.destroy_callback(self)
+        return self.hits
 
 class Tilemap:
     def __init__(self, matrix, tile_list, TILE_SIZE=32):
@@ -160,7 +174,8 @@ class Tilemap:
         x, y = 0, 0
         for row in self.tile_matrix:
             for thing in row:
-                z = _Tile(tile_list[thing], TILE_SIZE * x, TILE_SIZE * y)
+                tp = tile_list[thing]._tile_creation_class
+                z = tp(tiletype=tile_list[thing], x=TILE_SIZE * x, y=TILE_SIZE * y, superclass=tile_list[thing])
                 self.tile_matrix[y][x] = z
                 x += 1
             x = 0
@@ -407,6 +422,25 @@ class CollidableObject:
     def __repr__(self):
         return "[CollidableObject rect=" + str(self.rect) + "]"
 
+class HittableDemoObject(Tile):
+    def __init__(self, image, num_hits, destroy_callback, subsurface_rect_args=None, name="hittabledemoobject"):
+        print("sra: %s" % subsurface_rect_args)
+        Tile.__init__(self, image, name=name, subsurface_rect_args=subsurface_rect_args)
+        self._tile_creation_class = _HittableDemoObject
+        self.hits = num_hits
+        self.destroy_callback = destroy_callback
+        
+    def hit(self, amount):
+        self.num_hits -= amount
+        if self.num_hits <= 0:
+            self.destroy_callback(self)
+
+def sample_callback(tile):
+    print("Sample callback for %s" % tile)
+
+    
+
+
 
 
 
@@ -415,7 +449,7 @@ def main():
   screen = pygame.display.set_mode((320, 320), flags=pygame.SCALED)
   dirt = Tile('assets/dirt.png', name="Dirt")
   grass = Tile('assets/grass.png', name="Grass")
-  tree = Tile('assets/tree.png', name="Tree", subsurface_rect_args=[11, 93, 8, 3])
+  tree = HittableDemoObject('assets/tree.png', 10, sample_callback, name="Tree", subsurface_rect_args=[11, 93, 8, 3])
   ground_tmap = Tilemap(tools.load_mat('assets/level.txt'), [dirt, grass])
   flags_tmap = Tilemap(tools.load_mat('assets/flags_mat.txt'), [NullTile(), tree])
   player = CollidableObject('assets/player.png', x=100, y=100, subsurface_rect_args=[8, 29, 16, 3])
@@ -424,6 +458,7 @@ def main():
   p = player
   clock = pygame.time.Clock()
   numframes = 0
+  hit_objs = list(flags_tmap.tile_registry.get_all_for_condition(lambda x: x.tiletype == tree)) # sneaky generator!
 
   running = True
 
@@ -431,6 +466,13 @@ def main():
     for event in pygame.event.get():
       if event.type == pygame.QUIT:
         running = False
+
+      elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
+            elif event.key == pygame.K_SPACE:
+                for thing in hit_objs:
+                    thing.hit(4)
       
     keys = pygame.key.get_pressed()
 
