@@ -81,7 +81,9 @@ class NullTile:
 
 class _Tile:
     '''
-    Internal class used to represent a specific tile in the world.
+    Internal base class used to represent a specific tile in the world.
+
+    The superclass parameter is not used here, but can be used in custom tile children.
     '''
     def __init__(self, tiletype, x, y, superclass=None):
         self.name = tiletype.name
@@ -105,42 +107,56 @@ class _Tile:
         return self.__str__()
 
     def draw(self, surface):
+        '''
+        Draw the tile to the surface.
+        '''
         surface.blit(self.image, (self.x, self.y))
 
     def get_rect(self):
+        '''
+        Get the rect of the tile.
+        '''
         return self.rect
 
     def generate_rect(self):
+        '''
+        (Re)generate the rect of the tile.
+        '''
         self.rect = pygame.Rect(self.x + self.sra[0], self.y + self.sra[1], self.sra[2], self.sra[3])
 
 
-    def update_tiletype(self, new_tiletype):
-        self.tiletype = new_tiletype
-        self.image = new_tiletype.image
-        self.name = new_tiletype.name
-        self.width = new_tiletype.width
-        self.height = new_tiletype.height
-        if not self.has_rect and new_tiletype.has_rect: # was a nulltile, converting to a tile
-            self.generate_rect()
-        elif self.has_rect and not new_tiletype.has_rect: # converting to nulltile
-            self.rect.width = 0
-            self.rect.height = 0
-        self.has_rect = new_tiletype.has_rect
+    def update_tiletype(self, new_tiletype, *pargs, **kwargs):
+        '''
+        Update the tiletype of the tile.
+        '''
+        self = new_tiletype._tile_creation_class(self, self.x, self.y, *pargs, **kwargs)
         print("Done with update_tiletype")
 
     def move_x(self, amount):
+        '''
+        Move the tile horizontally.
+        '''
         self.rect.x += amount
         self.x += amount
     
     def move_y(self, amount):
+        '''
+        Move the tile vertically.
+        '''
         self.rect.y += amount
         self.y += amount
 
     def move_xy(xamount, yamount):
+        '''
+        Move the tile horizontally and vertically.
+        '''
         self.move_x(xamount)
         self.move_y(yamount)
 
     def goto(self, x, y):
+        '''
+        Move the tile to a specific location.
+        '''
         self.x = x
         self.y = y
         self.rect.x = x
@@ -150,15 +166,25 @@ class _Tile:
         return '[_Tile rect=%s; tiletype=%s]' % (str(self.rect), str(self.tiletype))
 
     def colliderect(self, other):
+        '''
+        Check if the tile collides with another rect.
+        '''
         return self.rect.colliderect(other)
 
 class _HittableDemoObject(_Tile):
     def __init__(self, superclass=None, *pargs, **kwargs):
+        '''
+        Used as a dummy class to represent what can be done with inheritance from _Tile.
+        superclass is a class, not an instance, with data.
+        '''
         _Tile.__init__(self, *pargs, **kwargs)
         self.hits = superclass.hits
         self.superclass = superclass
     
     def hit(self, damage):
+        '''
+        Subtract damage damage from the object.
+        '''
         print("Oof! You hit me for %s damage! " % damage)
         self.hits -= damage
         print("I have %s hits left!" % self.hits)
