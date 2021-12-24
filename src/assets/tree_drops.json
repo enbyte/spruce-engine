@@ -1,0 +1,9 @@
+{
+	"drops_tree": {
+		"item_log": 100,
+		"item_log@": 50,
+		"item_log@@": 25,
+		"item_leaves": 75,
+		"item_fruit": 10
+	}
+}

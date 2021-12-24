@@ -19,11 +19,16 @@ else:
     import object_manager
     import btm_tools as tools
 
+# DROPS SETUP
+tree_drops = drops.ItemDrops('assets/tree_drops.json', name='tree_drops')
+
 
 # HANDLER FUNCS SETUP
 
 def remove_tile(tile):
     tile.update_tiletype(NullTile)
+
+get_trees = lambda tmap: list(tmap.tile_registry.get_all_for_condition(lambda x: x.tiletype == tree))
 
 # ASSETS SETUP
 
@@ -43,9 +48,16 @@ SCREEN_FLAGS = SCALED | DOUBLEBUF
 display = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=SCREEN_FLAGS)
 
 # OBJECT CREATION
-PLAYER_INITIAL_X = 100
-PLAYER_INITIAL_Y = 100
-player = tilemap.CollidableObject(manager.get_texture('player'), PLAYER_INITIAL_X, PLAYER_INITIAL_Y, subsurface_rect_args=[20, 0, 32, 12])
+class var: pass
+var.PLAYER_INITIAL_X = 100
+var.PLAYER_INITIAL_Y = 100
+var.PLAYER_YVEL = 0
+var.PLAYER_XVEL = 0
+var.PLAYER_YVEL_CAP = 5
+var.PLAYER_XVEL_CAP = 5
+player = tilemap.CollidableObject(manager.get_texture('player'), var.PLAYER_INITIAL_X, var.PLAYER_INITIAL_Y, subsurface_rect_args=[0, 29, 32, 3])
+
+axe = tilemap.CollidableObject(manager.get_texture('axe'), PLAYER_INITIAL_X)
 
 # TILES CREATION
 
@@ -66,9 +78,11 @@ running = True
 
 pygame.event.set_allowed([QUIT, KEYDOWN])
 
+clock = pygame.time.Clock()
+
 
 def main():
-    global running
+    global running, var
     while running:
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -77,12 +91,42 @@ def main():
                 if event.key == K_ESCAPE:
                     running = False
 
-        display.fill((0, 0, 0))
-        ground_tmap.draw(display)
-        trees_tmap.draw(display)
-        player.draw(display)
+        keys = pygame.key.get_pressed()
 
+        if keys[K_UP]:
+            var.PLAYER_YVEL -= 3
+        if keys[K_DOWN]:
+            var.PLAYER_YVEL += 3
+        if keys[K_LEFT]:
+            var.PLAYER_XVEL -= 3
+        if keys[K_RIGHT]:
+            var.PLAYER_XVEL += 3
+
+        if keys[K_p]:
+            print(player.rect, player.x, player.y)
+
+        if var.PLAYER_XVEL > var.PLAYER_XVEL_CAP:
+            var.PLAYER_XVEL = 5
+        if var.PLAYER_XVEL < -1 * var.PLAYER_XVEL_CAP:
+            var.PLAYER_XVEL = -5
+        if var.PLAYER_YVEL > var.PLAYER_YVEL_CAP:
+            var.PLAYER_YVEL = 5
+        if var.PLAYER_YVEL < -1 * var.PLAYER_YVEL_CAP:
+            var.PLAYER_YVEL = -5
+        
+        player.set_velocities(var.PLAYER_XVEL, var.PLAYER_YVEL)
+
+        player.collide(trees_tmap)
+
+        player.zero_velocities()
+        var.PLAYER_XVEL, var.PLAYER_YVEL = 0, 0
+
+
+        ground_tmap.draw(display)
+        combined_registries = player.get_registry() + trees_tmap.get_registry()
+        combined_registries.draw_sorted_on_screen(display)
         pygame.display.update()
+        clock.tick(30)
         
 
 if __name__ == "__main__":

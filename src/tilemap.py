@@ -171,6 +171,9 @@ class _Tile:
         '''
         return self.rect.colliderect(other)
 
+    def get_depth(self):
+        return self.rect.y
+
 class _HittableDemoObject(_Tile):
     def __init__(self, superclass=None, *pargs, **kwargs):
         '''
@@ -336,9 +339,9 @@ class CollidableObject:
         self.image = _sticky_load_image(image)
         self.x, self.y = x, y
         self.sra = subsurface_rect_args
+        
         if not subsurface_rect_args == None:
           self.rect = pygame.Rect(self.x + subsurface_rect_args[0], self.y + subsurface_rect_args[1], subsurface_rect_args[2], subsurface_rect_args[3])
-          #print(self.rect, self.x, self.y)
         else:
           self.rect = self.image.get_rect()
           self.rect.x = x
@@ -439,8 +442,15 @@ class CollidableObject:
       self.xvel = 0
       self.yvel = 0
 
+    def set_velocities(self, xvel, yvel):
+        self.xvel = xvel
+        self.yvel = yvel
+
     def get_registry(self):
         return self.r
+
+    def get_depth(self):
+        return self.rect.y
 
     def __str__(self):
         return "[CollidableObject rect=" + str(self.rect) + "]"

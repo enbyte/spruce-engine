@@ -93,6 +93,7 @@ class Registry:
         if not isinstance(objs, list):
             raise TypeError("objs must be a list")
 
+
     def __contains__(self, obj):
         return obj in self.objs or id(obj) in list(map(id, self.objs))
 
