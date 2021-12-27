@@ -129,7 +129,7 @@ class _Tile:
         '''
         Update the tiletype of the tile.
         '''
-        self = new_tiletype._tile_creation_class(self, self.x, self.y, *pargs, **kwargs)
+        self = new_tiletype._tile_creation_class(self, self.x, self.y, )
         print("Done with update_tiletype")
 
     def move_x(self, amount):
@@ -338,14 +338,15 @@ class CollidableObject:
         '''
         self.image = _sticky_load_image(image)
         self.x, self.y = x, y
-        self.sra = subsurface_rect_args
         
         if not subsurface_rect_args == None:
+          self.sra = subsurface_rect_args
           self.rect = pygame.Rect(self.x + subsurface_rect_args[0], self.y + subsurface_rect_args[1], subsurface_rect_args[2], subsurface_rect_args[3])
         else:
           self.rect = self.image.get_rect()
           self.rect.x = x
           self.rect.y = y
+          self.sra = [0, 0, self.rect.width, self.rect.height]
         self.xvel = 0
         self.yvel = 0
         self.precollisions = {}
@@ -451,6 +452,14 @@ class CollidableObject:
 
     def get_depth(self):
         return self.rect.y
+
+    def move_to_rect(self, ignore_sra=False):
+        if ignore_sra:
+            self.x = self.rect.x
+            self.y = self.rect.y
+        else:
+            self.x = self.rect.x - self.sra[0]
+            self.y = self.rect.y - self.sra[1]
 
     def __str__(self):
         return "[CollidableObject rect=" + str(self.rect) + "]"

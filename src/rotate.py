@@ -31,7 +31,7 @@ def main():
     pygame.display.set_caption("Translate")
 
     il = object_manager.BasicLoader()
-    axe_texture = il.load("assets/wooden_axe.png")
+    axe_texture = il.load("assets/wooden_pickaxe.png")
     axe_texture = pygame.transform.scale(axe_texture, (96, 96))
     axe_texture = pygame.transform.rotate(axe_texture, 45) # make the axe texture vertical upright
 

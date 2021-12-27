@@ -233,7 +233,6 @@ class Text(_GUIParent): # this one will be simple, right? right?...
         x, y = self.rect.x, self.rect.y
         self.rect = self.surf.get_rect()
         self.rect.x, self.rect.y = x, y
-        print(f'{self.text}: w: {abs(w-self.rect.width)}, h: {abs(h-self.rect.height)}')
 
     def draw(self, surface):
         surface.blit(self.surf, self.rect)

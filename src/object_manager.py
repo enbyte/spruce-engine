@@ -22,6 +22,8 @@ pygame.mixer.init()
 from pygame.image import load as il
 from pygame.mixer import Sound
 
+
+
 def get_extension(file):
     return file.split('.')[-1]
 
@@ -163,18 +165,23 @@ class Registry:
                 yield obj
 
     def sorted_on_screen(self, screen_rect):
-        return sorted(self.get_on_screen(screen_rect), key=operator.attrgetter('rect.y')) # the cause of so much pain... it was literally rect.y instead of y and I spent thirty minuted trying to fix this
+        return sorted(self.get_on_screen(screen_rect), key=operator.methodcaller('get_depth')) # the cause of so much pain... it was literally rect.y instead of y and I spent thirty minuted trying to fix this
 
     def sort_all(self):
-        self.objs = sorted(self.objs, key=operator.attrgetter('rect.y'))
+        self.objs = sorted(self.objs, key=operator.methodcaller('get_depth'))
 
     def get_sorted_on_screen(self, screen_rect):
-        return sorted(self.get_on_screen(screen_rect), key=operator.attrgetter('rect.y'))
+        return sorted(self.get_on_screen(screen_rect), key=operator.methodcaller('get_depth'))
 
     def get_all_for_condition(self, condition):
         for obj in self.objs:
             if condition(obj):
                 yield obj
+
+    def insert_into_sorted_objs(self, objs, key, do_sort=True):
+        if do_sort:
+            objs = sorted(objs, key=operator.methodcaller('get_depth'))
+            
 
 
     
