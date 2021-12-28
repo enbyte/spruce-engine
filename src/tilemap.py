@@ -79,13 +79,16 @@ class NullTile:
 
         
 
-class _Tile:
+class _Tile(object_manager.DirtyObject):
     '''
     Internal base class used to represent a specific tile in the world.
 
     The superclass parameter is not used here, but can be used in custom tile children.
     '''
-    def __init__(self, tiletype, x, y, superclass=None):
+    def __init__(self, tiletype, tilemap, x, y, superclass=None):
+        object_manager.DirtyObject.__init__(self)
+        print("__init__ _Tile")
+        self.tilemap = tilemap
         self.name = tiletype.name
         self.image = tiletype.image
         self.tiletype = tiletype #keep track of it
@@ -122,15 +125,22 @@ class _Tile:
         '''
         (Re)generate the rect of the tile.
         '''
+        
         self.rect = pygame.Rect(self.x + self.sra[0], self.y + self.sra[1], self.sra[2], self.sra[3])
 
 
-    def update_tiletype(self, new_tiletype, *pargs, **kwargs):
+    def update_tiletype(self, new_tiletype, tilemap, print_warning=True):
         '''
         Update the tiletype of the tile.
         '''
-        self = new_tiletype._tile_creation_class(self, self.x, self.y, )
-        print("Done with update_tiletype")
+
+        if print_warning:
+            print("Remebah to update mah tilemap's registry, hunny!")
+        self = new_tiletype._tile_creation_class(new_tiletype, tilemap, x=self.x, y=self.y)
+        self.tiletype = new_tiletype
+        self.tilemap.update_registry()
+
+        self.set_dirty()
 
     def move_x(self, amount):
         '''
@@ -204,7 +214,7 @@ class Tilemap:
         for row in self.tile_matrix:
             for thing in row:
                 tp = tile_list[thing]._tile_creation_class
-                z = tp(tiletype=tile_list[thing], x=TILE_SIZE * x, y=TILE_SIZE * y, superclass=tile_list[thing])
+                z = tp(tiletype=tile_list[thing], tilemap=self, x=TILE_SIZE * x, y=TILE_SIZE * y, superclass=tile_list[thing])
                 self.tile_matrix[y][x] = z
                 x += 1
             x = 0
@@ -214,6 +224,10 @@ class Tilemap:
         self.tile_registry = object_manager.Registry(self.get_list_of_tiles())
         self.x = 0
         self.y = 0
+
+    def update_registry(self):
+        print("update registry")
+        self.tile_registry = object_manager.Registry(self.get_list_of_tiles())
 
     def get_list_of_tiles(self):
         '''
@@ -331,11 +345,12 @@ class Tilemap:
 
 
 
-class CollidableObject:
+class CollidableObject(object_manager.DirtyObject):
     def __init__(self, image, x, y, subsurface_rect_args=None):
         '''
       subsurface_rect_args format: [x (on image), y (on image), width, height]
         '''
+        object_manager.DirtyObject.__init__(self)
         self.image = _sticky_load_image(image)
         self.x, self.y = x, y
         

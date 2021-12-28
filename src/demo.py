@@ -31,7 +31,13 @@ tree_drops = drops.ItemDrops('assets/tree_drops.json', name='drops_tree')
 # HANDLER FUNCS SETUP
 
 def remove_tile(tile):
-    tile.update_tiletype(tilemap.NullTile())
+    m = tile.tilemap
+    print(get_trees(m))
+    print("len:", len(m.get_registry()))
+    tile.update_tiletype(tilemap.NullTile(), m)
+    m.update_registry()
+    #print(get_trees(m))
+    print("len 2:", len(m.get_registry()))
 
 get_trees = lambda tmap: list(tmap.tile_registry.get_all_for_condition(lambda x: x.tiletype == tree))
 
@@ -62,7 +68,6 @@ var.PLAYER_XVEL = 0
 var.PLAYER_YVEL_CAP = 5
 var.PLAYER_XVEL_CAP = 5
 player = tilemap.CollidableObject(manager.get_texture('player'), var.PLAYER_INITIAL_X, var.PLAYER_INITIAL_Y, subsurface_rect_args=[0, 29, 32, 3])
-
 axe = tilemap.CollidableObject(manager.get_texture('axe'), 0, 0)
 var.axe_rotation_point = player.rect.center
 var.axe_rotator = rotate.Rotator(axe.rect.center, axe.rect.midbottom, image_angle=45)
@@ -98,7 +103,7 @@ global running
 running = True
 
 pygame.event.set_allowed([QUIT, KEYDOWN])
-
+ 
 clock = pygame.time.Clock()
 
 
@@ -119,7 +124,6 @@ def main():
                     axe.rect.midbottom = (player.x + player.image.get_width() / 2, player.y + player.image.get_height() / 2)
                     var.axe_rotator = rotate.Rotator(axe.rect.center, (player.x + player.image.get_width() / 2, player.y + player.image.get_height() / 2), image_angle=45)
                     print('space down')
-        update_rects = []
 
         keys = pygame.key.get_pressed()
 

@@ -27,6 +27,22 @@ from pygame.mixer import Sound
 def get_extension(file):
     return file.split('.')[-1]
 
+class DirtyObject:
+    def __init__(self, dirty=False):
+        self.dirty = dirty
+
+    def set_dirty(self):
+        self.dirty = True
+
+    def set_clean(self):
+        self.dirty = False
+
+    def get_dirty(self):
+        return self.dirty
+
+    def toggle_dirty(self):
+        self.dirty = not self.dirty
+
 class Loader:
     def __init__(self, loaders):
         self.loaders = loaders
