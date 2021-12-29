@@ -1,6 +1,7 @@
 import pygame
 from pygame.locals import *
 pygame.init()
+pygame.mixer.init()
 
 if not __name__ == '__main__':
     from . import tilemap
@@ -19,6 +20,8 @@ else:
     import object_manager
     import btm_tools as tools
 class var: pass
+class drawable:
+    def draw(*args,**kwargs):pass
 
 # UI SETUP
 var.gs = ui.GUISkin()
@@ -30,18 +33,17 @@ tree_drops = drops.ItemDrops('assets/tree_drops.json', name='drops_tree')
 
 # HANDLER FUNCS SETUP
 
-def remove_tile(tile):
+def loraxinate(tile):
+    scream.play()
     m = tile.tilemap
-    print(get_trees(m))
-    print("len:", len(m.get_registry()))
-    tile.update_tiletype(tilemap.NullTile(), m)
-    m.update_registry()
-    #print(get_trees(m))
-    print("len 2:", len(m.get_registry()))
+    tile.update_tiletype(lorax, m)
+
 
 get_trees = lambda tmap: list(tmap.tile_registry.get_all_for_condition(lambda x: x.tiletype == tree))
 
 # ASSETS SETUP
+
+scream = pygame.mixer.Sound('assets/boosted_scream.ogg')
 
 manager = object_manager.AssetManager()
 
@@ -50,7 +52,10 @@ manager.add_texture("assets/dirt.png", "dirt")
 manager.add_texture("assets/grass.png", "grass")
 manager.add_texture("assets/tree.png", "tree")
 manager.add_texture("assets/wooden_pickaxe.png", "axe") 
+manager.add_texture('assets/lorax_with_eyes.png', 'lorax')
 manager.textures["axe"] = pygame.transform.scale(manager.get_texture('axe'), (32, 32))
+manager.textures['lorax'].set_colorkey(manager.get_texture('lorax').get_at((0, 0)))
+manager.textures['lorax'] = pygame.transform.scale(manager.get_texture('lorax'), (96, 96))
 # SCREEN SETUP
 SCREEN_WIDTH = 10 * 32
 SCREEN_HEIGHT = 10 * 32
@@ -89,7 +94,8 @@ def get_angle(axe_step):
 
 dirt = tilemap.Tile(manager.get_texture('dirt'), name='dirt')
 grass = tilemap.Tile(manager.get_texture('grass'), name='grass')
-tree = tilemap.HittableDemoObject(manager.get_texture('tree'), num_hits=10, destroy_callback=remove_tile, name='tree', subsurface_rect_args=[11, 93, 8, 3])
+tree = tilemap.HittableDemoObject(manager.get_texture('tree'), num_hits=10, destroy_callback=loraxinate,name='tree', subsurface_rect_args=[11, 93, 8, 3])
+lorax = tilemap.Tile(manager.get_texture('lorax'), name='lorax')
 
 # TILEMAP CREATION
 
@@ -110,7 +116,12 @@ clock = pygame.time.Clock()
 
 def main():
     global running, var
+    current_ui_bar = drawable()
     axe_center_points = []
+    print(len(get_trees(trees_tmap)))
+    ogtree = get_trees(trees_tmap)[1]
+    ogtree.val = 100
+    print(ogtree in trees_tmap.get_list_of_tiles())
     while running:
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -123,6 +134,7 @@ def main():
                     var.axe_step = 0
                     axe.rect.midbottom = (player.x + player.image.get_width() / 2, player.y + player.image.get_height() / 2)
                     var.axe_rotator = rotate.Rotator(axe.rect.center, (player.x + player.image.get_width() / 2, player.y + player.image.get_height() / 2), image_angle=45)
+
                     print('space down')
 
         keys = pygame.key.get_pressed()
@@ -186,12 +198,13 @@ def main():
                 if tree.rect.colliderect(axe.rect):
                     print("ye hit me!")
                     tree.hit(3)
-                    ui.FillBar(var.gs, x=0, y=50, width=100, height=10, value=tree.hits, max_value=10).draw(display)
+                    current_ui_bar = ui.FillBar(var.gs, x=0, y=50, width=100, height=10, value=tree.hits, max_value=10)
                     var.axe_is_rotating = False
                     var.axe_step = 0
 
         for point in axe_center_points:
             pass#pygame.draw.line(display, (0, 255, 0), point, point, width=3)
+        current_ui_bar.draw(display)
         var.fps_counter.set_text("FPS: %s" % int(clock.get_fps()))
         var.fps_counter.draw(display)
 

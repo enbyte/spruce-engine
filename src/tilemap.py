@@ -129,16 +129,30 @@ class _Tile(object_manager.DirtyObject):
         self.rect = pygame.Rect(self.x + self.sra[0], self.y + self.sra[1], self.sra[2], self.sra[3])
 
 
-    def update_tiletype(self, new_tiletype, tilemap, print_warning=True):
+    def update_tiletype(self, new_tiletype, tilemap):
         '''
         Update the tiletype of the tile.
         '''
+        prev = self
+        rowc = 0
 
-        if print_warning:
-            print("Remebah to update mah tilemap's registry, hunny!")
-        self = new_tiletype._tile_creation_class(new_tiletype, tilemap, x=self.x, y=self.y)
+        for row in self.tilemap.tile_matrix:
+            if self in row:
+                break
+            rowc += 1
+
+        col = self.tilemap.tile_matrix[rowc].index(self)
+        print("update:", new_tiletype, tilemap)
+        new = new_tiletype._tile_creation_class(new_tiletype, tilemap, x=self.x, y=self.y)
+        self = new
         self.tiletype = new_tiletype
+        self.tilemap = tilemap
+        self.tilemap.tile_matrix[rowc][col] = self
         self.tilemap.update_registry()
+
+        print(self.name, self.tiletype)
+        print(self in self.tilemap.get_list_of_tiles())
+        print(prev in self.tilemap.get_list_of_tiles())
 
         self.set_dirty()
 
@@ -224,7 +238,6 @@ class Tilemap:
         self.tile_registry = object_manager.Registry(self.get_list_of_tiles())
         self.x = 0
         self.y = 0
-
     def update_registry(self):
         print("update registry")
         self.tile_registry = object_manager.Registry(self.get_list_of_tiles())
