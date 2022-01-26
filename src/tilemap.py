@@ -87,7 +87,6 @@ class _Tile(object_manager.DirtyObject):
     '''
     def __init__(self, tiletype, tilemap, x, y, superclass=None):
         object_manager.DirtyObject.__init__(self)
-        print("__init__ _Tile")
         self.tilemap = tilemap
         self.name = tiletype.name
         self.image = tiletype.image
@@ -133,26 +132,15 @@ class _Tile(object_manager.DirtyObject):
         '''
         Update the tiletype of the tile.
         '''
-        prev = self
-        rowc = 0
-
-        for row in self.tilemap.tile_matrix:
-            if self in row:
-                break
-            rowc += 1
-
-        col = self.tilemap.tile_matrix[rowc].index(self)
+        self.tilemap.tile_list.remove(self)
         print("update:", new_tiletype, tilemap)
         new = new_tiletype._tile_creation_class(new_tiletype, tilemap, x=self.x, y=self.y)
         self = new
         self.tiletype = new_tiletype
         self.tilemap = tilemap
-        self.tilemap.tile_matrix[rowc][col] = self
+        self.tilemap.tile_list.append(self)
         self.tilemap.update_registry()
 
-        print(self.name, self.tiletype)
-        print(self in self.tilemap.get_list_of_tiles())
-        print(prev in self.tilemap.get_list_of_tiles())
 
         self.set_dirty()
 
@@ -223,18 +211,18 @@ class Tilemap:
     def __init__(self, matrix, tile_list, TILE_SIZE=32):
         self.matrix = matrix
         self.TILE_SIZE = TILE_SIZE
-        self.tile_matrix = copy.deepcopy(matrix)
+        self.tile_list = []
         x, y = 0, 0
-        for row in self.tile_matrix:
+        for row in matrix:
             for thing in row:
                 tp = tile_list[thing]._tile_creation_class
                 z = tp(tiletype=tile_list[thing], tilemap=self, x=TILE_SIZE * x, y=TILE_SIZE * y, superclass=tile_list[thing])
-                self.tile_matrix[y][x] = z
+                self.tile_list.append(z)
                 x += 1
             x = 0
             y += 1
            
-        self.tile_list = tile_list
+        self.tiletype_list = tile_list
         self.tile_registry = object_manager.Registry(self.get_list_of_tiles())
         self.x = 0
         self.y = 0
@@ -246,11 +234,7 @@ class Tilemap:
         '''
         Concatenate the entire matrix of tiles into one list, for individual operations on them.
         '''
-        z = []
-        for row in self.tile_matrix:
-            z.extend(row) # add the current row to z
-
-        return z
+        return self.tile_list
 
     def move_x(self, amount):
         '''
@@ -282,6 +266,24 @@ class Tilemap:
         for tile in self.get_list_of_tiles():
             tile.goto(x, y)
 
+    def goto_x(self, x):
+        '''
+        Move the tilemap and all of the tiles to a given x-position.
+        '''
+        self.x = x
+
+        for tile in self.get_list_of_tiles():
+            tile.goto(x, self.y)
+
+    def goto_y(self, y):
+        '''
+        Move the tilemap and all of the tiles to a given y-position.
+        '''
+        self.y = y
+
+        for tile in self.get_list_of_tiles():
+            tile.goto(self.x, y)
+
     def collision_test(self, rect, ignore_tiletypes=[], ignore_names=[]):
         '''
         For each tile in the tilemap, test if it collides with a given pygame.Rect.
@@ -299,22 +301,15 @@ class Tilemap:
         '''
         Return the tile at x, y in screenspace
         '''
-        ydiff = abs(y - self.y)
-        xdiff = abs(x - self.x)
-        print("Diff:", xdiff, ydiff)
-        ytile = int(ydiff // self.TILE_SIZE)
-        xtile = int(xdiff // self.TILE_SIZE)
-        print("xt type:", type(xtile))
-        print("Tile:", xtile, ytile)
-        print("Matrix size:", len(self.tile_matrix), len(self.tile_matrix[0]))
-        print("tile_matrix tile:", self.tile_matrix[ytile][xtile])
-        return self.tile_matrix[ytile][xtile]
+        for tile in self.tile_list:
+            if tile.rect.collidepoint(x, y):
+                return tile
 
     def get_names(self):
-        return [x.name for x in self.tile_list]
+        return [x.name for x in self.tiletype_list]
 
     def get_tile(self, name):
-        for x in self.tile_list:
+        for x in self.tiletype_list:
             if x.name == name:
                 return x
 
@@ -322,23 +317,11 @@ class Tilemap:
         '''
         Get the non-tile matrix, with the numbers or whatever.
         '''
-        z = tools.matrix(0, len(self.tile_matrix[0]),  len(self.tile_matrix))
-        x, y = 0, 0
-        for i in z:
-            for p in i:
-                print('y, x:', y, x)
-                t = self.get_tile(self.tile_matrix[y][x].name)
-                z[y][x] = self.tile_list.index(t)
-                x += 1
-            x = 0
-            y += 1
-
-        return z
+        return self.matrix
 
     def get_tiles_on_screen(self, SCREEN_WIDTH, SCREEN_HEIGHT):
-        for row in self.tile_matrix:
-            for tile in row:
-              if not (tile.x + tile.width < 0 or tile.x > SCREEN_WIDTH or tile.y + tile.height < 0 or tile.y > SCREEN_HEIGHT):
+        for tile in self.tile_list:
+            if not (tile.x + tile.width < 0 or tile.x > SCREEN_WIDTH or tile.y + tile.height < 0 or tile.y > SCREEN_HEIGHT):
                 yield tile
 
     def draw(self, surface):
@@ -352,7 +335,7 @@ class Tilemap:
         return self.tile_registry
 
     def get_tiles_of_type(self, tiletype):
-        for tile in self.get_list_of_tiles():
+        for tile in self.tile_list:
             if tile.tiletype == tiletype:
                 yield tile
 
@@ -488,6 +471,18 @@ class CollidableObject(object_manager.DirtyObject):
         else:
             self.x = self.rect.x - self.sra[0]
             self.y = self.rect.y - self.sra[1]
+
+    def get_walls(self, screen_rect):
+        walls = {'top': False, 'bottom': False, 'right': False, 'left': False}
+        if self.rect.top <= screen_rect.top:
+            walls['top'] = True
+        if self.rect.bottom >= screen_rect.bottom:
+            walls['bottom'] = True
+        if self.rect.right >= screen_rect.right:
+            walls['right'] = True
+        if self.rect.left <= screen_rect.left:
+            walls['left'] = True
+        return walls
 
     def __str__(self):
         return "[CollidableObject rect=" + str(self.rect) + "]"

@@ -11,6 +11,7 @@ if not __name__ == '__main__':
     from . import rotate
     from . import object_manager
     from . import btm_tools as tools
+    from . import camera
 else:
     import tilemap
     import ui
@@ -19,6 +20,7 @@ else:
     import rotate
     import object_manager
     import btm_tools as tools
+    import camera
 class var: pass
 class drawable:
     def draw(*args,**kwargs):pass
@@ -53,15 +55,19 @@ manager.add_texture("assets/grass.png", "grass")
 manager.add_texture("assets/tree.png", "tree")
 manager.add_texture("assets/wooden_pickaxe.png", "axe") 
 manager.add_texture('assets/lorax_with_eyes.png', 'lorax')
+manager.add_texture('assets/cobblestone.png', 'cobblestone')
 manager.textures["axe"] = pygame.transform.scale(manager.get_texture('axe'), (32, 32))
 manager.textures['lorax'].set_colorkey(manager.get_texture('lorax').get_at((0, 0)))
 manager.textures['lorax'] = pygame.transform.scale(manager.get_texture('lorax'), (96, 96))
+manager.textures['cobblestone'] = pygame.transform.scale(manager.get_texture('cobblestone'), (32, 32))
 # SCREEN SETUP
 SCREEN_WIDTH = 10 * 32
 SCREEN_HEIGHT = 10 * 32
 SCREEN_FLAGS = DOUBLEBUF
 
 display = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags=SCREEN_FLAGS)
+SCREEN_RECT = display.get_rect()
+
 
 # OBJECT CREATION
 
@@ -94,13 +100,17 @@ def get_angle(axe_step):
 
 dirt = tilemap.Tile(manager.get_texture('dirt'), name='dirt')
 grass = tilemap.Tile(manager.get_texture('grass'), name='grass')
+stone_path = tilemap.Tile(manager.get_texture('cobblestone'), name='stone_path')
 tree = tilemap.HittableDemoObject(manager.get_texture('tree'), num_hits=10, destroy_callback=loraxinate,name='tree', subsurface_rect_args=[11, 93, 8, 3])
 lorax = tilemap.Tile(manager.get_texture('lorax'), name='lorax')
 
 # TILEMAP CREATION
 
-ground_tmap = tilemap.Tilemap(tools.load_mat('assets/level.txt'), [dirt, grass])
+ground_tmap = tilemap.Tilemap(tools.load_mat('assets/level.txt'), [grass, stone_path])
 trees_tmap = tilemap.Tilemap(tools.load_mat('assets/flags_mat.txt'), [tilemap.NullTile(), tree])
+
+var.GROUND_X_OFFSET = 0
+var.GROUND_Y_OFFSET = 0
 
 
 # MAIN LOOP SETUP
@@ -109,7 +119,7 @@ global running
 running = True
 
 pygame.event.set_allowed([QUIT, KEYDOWN])
- 
+
 clock = pygame.time.Clock()
 
 
@@ -122,6 +132,7 @@ def main():
     ogtree = get_trees(trees_tmap)[1]
     ogtree.val = 100
     print(ogtree in trees_tmap.get_list_of_tiles())
+    cam = camera.Camera(SCREEN_WIDTH, SCREEN_HEIGHT, x=0, y=0)
     while running:
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -166,6 +177,7 @@ def main():
 
         player.zero_velocities()
         var.PLAYER_XVEL, var.PLAYER_YVEL = 0, 0
+        
         if var.axe_is_rotating and not var.axe_step == var.axe_rotation_steps + 1:
             angle = get_angle(var.axe_step)
             axe.image = pygame.transform.rotate(manager.get_texture('axe'), angle)
@@ -185,12 +197,18 @@ def main():
         else:
             var.axe_is_rotating = False
         '''
-
         ground_tmap.draw(display)
+
         combined_registries = player.get_registry() + trees_tmap.get_registry()
         if var.axe_is_rotating:
             combined_registries += axe.get_registry()
+
+
+        
+
         combined_registries.draw_sorted_on_screen(display)
+
+        
         if var.axe_is_rotating:
             #pygame.draw.rect(display, (0, 255, 0), a_s, width=3)
 
