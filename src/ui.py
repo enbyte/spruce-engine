@@ -71,7 +71,6 @@ class Font:
         else:
             self.font = pygame.freetype.Font(filename, size=size)
 
-        print(self.font.size)
 
     def render(self, text, color, antialias=False):
         if color == (0, 0, 0):
@@ -108,7 +107,7 @@ class GUISkin():
         self.options = {
             'foreground': pygame.Color('black'),
             'background': pygame.Color('white'),
-            'font': Font('assets/alagard.ttf', 24 * 4/3),
+            'font': Font('./assets/alagard.ttf', 24 * 4/3),
             'margin': 10,
             'button-inactive-background': pygame.Color('black'),
             'button-inactive-foreground': pygame.Color('white'),
@@ -213,6 +212,58 @@ class Button(_GUIParent):
             else:
                 surface.blit(self.inactive_surf, self.rect)
 
+class ImageButton(_GUIParent):
+    def __init__(self, active_image, inactive_image, on_click, gui_skin=None, x=0, y=0, _assert_equal_size=True) -> None:
+        if type(active_image) == str:
+            self.active_image = pygame.image.load(active_image).convert_alpha()
+        else:
+            self.active_image = active_image.convert_alpha()
+        if type(inactive_image) == str:
+            self.inactive_image = pygame.image.load(inactive_image).convert_alpha()
+        else:
+            self.inactive_image = inactive_image.convert_alpha()
+        self.on_click = on_click
+        if _assert_equal_size:
+            assert self.active_image.get_rect().size == self.inactive_image.get_rect().size
+        self.rect = self.active_image.get_rect(x=x, y=y)
+        self.active = False
+        self.prev = False
+        self.gui_skin = gui_skin
+    
+    def update(self, mousepos=None, keyboard=None, mousedown=None):
+        if not mousepos == None:
+            mp = pygame.mouse.get_pos()
+        else:
+            mp = mousepos
+
+        if self.rect.collidepoint(mp):
+            self.active = True
+        else:
+            self.active = False
+
+        if not mousedown == None:
+            if mousedown[0] and self.active:
+                if not self.prev:
+                    try:
+                        self.on_click()
+                    except:
+                        raise Exception("Error in on_click function")
+                self.prev = True
+            else:
+                self.prev = False
+    
+    def draw(self, surface):
+        if self.active:
+            surface.blit(self.active_image, self.rect)
+        elif not self.active:
+            surface.blit(self.inactive_image, self.rect)
+        else:
+            print('uhhh.... not entirely sure how this is possible, but um logic is broken! or active is 0 somehow!')
+        
+    
+
+        
+
 class Text(_GUIParent): # this one will be simple, right? right?...
     def __init__(self, text, gui_skin, x=0, y=0):
         self.text = text
@@ -241,10 +292,8 @@ class Text(_GUIParent): # this one will be simple, right? right?...
         '''
       breaking?
         '''
-        print(self.gui_skin)
         self.gui_skin.set_option('foreground', color)
         self._rerender_surface()
-        print(self.gui_skin)
 
     def set_font(self, font):
         self.gui_skin.set_option('font', font)
@@ -338,7 +387,6 @@ def main():
     main_frame = Frame()
     b = Button("Play", gs, lambda: t.set_color((255, 0, 0)), x=0, y=0)
     b.center(screen.get_rect())
-    print("fsz==:", b.gui_skin.get_option('font').get_size())
     t = Text("AweSome Game", gs, x=200, y=10)
     t.center_x(screen.get_rect())
     t2 = Text("that is cool", gs, x=0, y=50)
@@ -347,7 +395,10 @@ def main():
     f = FillBar(gs, x=10, y=300, width=screen.get_width() - 20, height=50, value=50, max_value=100)
     f.set_option('foreground', (0, 255, 0))
     f.set_option('background', (255, 0, 0))
-    main_frame.add_children([b, t, t2, f])
+
+    i_button = ImageButton('assets/active_button.png', 'assets/inactive_button.png', lambda: print('Ouch!'), x=10, y=320)
+
+    main_frame.add_children([b, t, t2, f, i_button])
     running = True
     while running:
         for event in pygame.event.get():

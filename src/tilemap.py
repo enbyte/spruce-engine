@@ -1,15 +1,15 @@
 import pygame
 from pygame.locals import *
 import logging
-import btm_tools as tools
+from . import btm_tools as tools
 import copy
-import object_manager
+from . import object_manager
 
 COLLIDE_NONE = 0
 COLLIDE_X = (1 << 1)
 COLLIDE_Y = (1 << 2)
 
-logging.basicConfig(format='Spruce %(levelname.capital())s at %(asctime)s: %(message)s') # setup logging as 'Spruce Warning at 1:32:00: Bing bong'
+logging.basicConfig(format='Spruce Tilemap %(levelname.capital())s at %(asctime)s: %(message)s') # setup logging as 'Spruce Tilemap Warning at 1:32:00: Bing bong'
 
 pygame.init()
 
@@ -388,7 +388,28 @@ class CollidableObject(object_manager.DirtyObject):
         self.move_x(x)
         self.move_y(y)
 
-    def collide(self, tilemap, ignore_tiletypes=[], ignore_names=[]):
+    def collide_rect(self, rect):
+        collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
+        self.rect.y += self.yvel 
+        if self.rect.colliderect(rect):
+            if self.xvel > 0:
+                self.rect.right = rect.left
+                collision_types['right'] = True
+            if self.xvel < 0:
+                self.rect.left = rect.right
+                collision_types['left'] = True
+        self.rect.x += self.xvel
+        if self.rect.colliderect(rect):
+            if self.yvel > 0:
+                self.rect.bottom = rect.top
+                collision_types['bottom'] = True
+            if self.yvel < 0:
+                self.rect.top = rect.bottom
+                collision_types['top'] = True
+
+        return collision_types
+
+    def collide_tmap(self, tilemap, ignore_tiletypes=[], ignore_names=[]):
         '''
         Move the player, with the velocity member attributes and the tilemap to collide with.
         :param self Duh
@@ -528,6 +549,8 @@ def main():
   numframes = 0
   hit_objs = list(flags_tmap.tile_registry.get_all_for_condition(lambda x: x.tiletype == tree)) # sneaky generator!
 
+  box = CollidableObject('assets/stone_path.png', x=100, y=100)
+
   running = True
 
   while running:
@@ -565,7 +588,8 @@ def main():
     if p.yvel < -5:
       p.yvel = -5
 
-    player.collide(flags_tmap)
+    player.collide_tmap(flags_tmap)
+    player.collide_rect(box.rect)
 
     player.zero_velocities()
 
@@ -573,6 +597,7 @@ def main():
     ground_tmap.draw(screen)
     combined_registries = player.get_registry() + flags_tmap.get_registry()
     combined_registries.draw_sorted_on_screen(screen)
+    box.draw(screen)
     pygame.display.update()
     numframes += 1
     clock.tick(30)
